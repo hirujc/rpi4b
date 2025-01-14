@@ -29,6 +29,9 @@ keypad_layout = [
 # Initialize the LCD using I2C address 0x27
 lcd = CharLCD(i2c_expander='PCF8574', address=0x27, port=1)
 
+# Variables for calculation
+expression = ""
+
 # Function to scan the keypad
 def scan_keypad():
     for row_index, row in enumerate(ROW_PINS):
@@ -44,14 +47,33 @@ def scan_keypad():
     
     return None  # Return None if no key is pressed
 
-# Main loop to read the keypad and print the pressed keys on the LCD
+# Function to update the LCD display
+def update_display():
+    lcd.clear()
+    lcd.write_string(expression)
+
+# Main loop to read the keypad and perform calculations
 try:
     while True:
         key = scan_keypad()
+        
         if key:
-            lcd.clear()  # Clear the LCD before displaying the new key
-            lcd.write_string(f"Key pressed: {key}")
-            print(f"Key pressed: {key}")
+            if key == "#":  # Equals button
+                try:
+                    result = str(eval(expression))  # Evaluate the expression
+                    expression = result
+                except Exception as e:
+                    expression = "Error"
+            elif key == 'A':  # Clear the expression
+                expression = ""
+            elif key == 'B':  # Backspace (remove last character)
+                expression = expression[:-1]
+            else:  # Append number or operator
+                expression += key
+
+            update_display()  # Update the LCD display with the current expression
+            print(f"Current Expression: {expression}")
+        
         time.sleep(0.1)  # Small delay to debounce the button press
 
 except KeyboardInterrupt:
