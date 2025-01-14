@@ -72,6 +72,8 @@ try:
             current_time = time.time()
             
             if debounce(key, current_time):  # Check if the key press is debounced
+                if key == "*":
+                    expression += '*'
                 if key == "#":  # Equals button
                     try:
                         result = str(eval(expression))  # Evaluate the expression
@@ -83,7 +85,7 @@ try:
                 elif key == 'B':  # Subtraction (mapped to -)
                     expression += '-'  # Subtraction operator
                 elif key == 'C':  # '*' button
-                    expression += '*'  # Multiply operator
+                    lcd.clear()  # Multiply operator
                 elif key == 'D':  # '/' button
                     expression += '/'  # Division operator
                 elif key.isdigit() or key in ['+', '-', '*', '/']:  # If the key is a digit or operator
