@@ -20,10 +20,10 @@ for col in COL_PINS:
 
 # Define the keypad layout (the matrix of buttons)
 keypad_layout = [
-    ['1', '2', '3', 'A'],
-    ['4', '5', '6', 'B'],
-    ['7', '8', '9', 'C'],
-    ['*', '0', '#', 'D']
+    ['1', '2', '3', 'A'],  # A -> mapped to '+'
+    ['4', '5', '6', 'B'],  # B -> mapped to '-'
+    ['7', '8', '9', 'C'],  # C -> mapped to '*'
+    ['*', '0', '#', 'D']   # D -> mapped to '/'
 ]
 
 # Initialize the LCD using I2C address 0x27
@@ -64,11 +64,15 @@ try:
                     expression = result
                 except Exception as e:
                     expression = "Error"
-            elif key == 'A':  # Clear the expression
-                expression = ""
+            elif key == 'A':  # Clear the expression (mapped to +)
+                expression += '+'  # Add '+' to the expression
             elif key == 'B':  # Backspace (remove last character)
                 expression = expression[:-1]
-            else:  # Append number or operator
+            elif key == 'C':  # '*' button
+                expression += '*'  # Multiply operator
+            elif key == 'D':  # '/' button
+                expression += '/'  # Division operator
+            elif key.isdigit() or key in ['+', '-', '*', '/']:  # If the key is a digit or operator
                 expression += key
 
             update_display()  # Update the LCD display with the current expression
