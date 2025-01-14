@@ -31,6 +31,8 @@ lcd = CharLCD(i2c_expander='PCF8574', address=0x27, port=1)
 
 # Variables for calculation
 expression = ""
+last_key = None
+last_time = 0
 
 # Function to scan the keypad
 def scan_keypad():
@@ -52,33 +54,45 @@ def update_display():
     lcd.clear()
     lcd.write_string(expression)
 
+# Function to implement debounce
+def debounce(key, current_time, debounce_delay=0.3):
+    global last_key, last_time
+    if key == last_key and (current_time - last_time) < debounce_delay:
+        return False  # If the same key is pressed too quickly, ignore it
+    last_key = key
+    last_time = current_time
+    return True  # Otherwise, accept the key press
+
 # Main loop to read the keypad and perform calculations
 try:
     while True:
         key = scan_keypad()
         
         if key:
-            if key == "#":  # Equals button
-                try:
-                    result = str(eval(expression))  # Evaluate the expression
-                    expression = result
-                except Exception as e:
-                    expression = "Error"
-            elif key == 'A':  # Clear the expression (mapped to +)
-                expression += '+'  # Add '+' to the expression
-            elif key == 'B':  # Backspace (remove last character)
-                expression = expression[:-1]
-            elif key == 'C':  # '*' button
-                expression += '*'  # Multiply operator
-            elif key == 'D':  # '/' button
-                expression += '/'  # Division operator
-            elif key.isdigit() or key in ['+', '-', '*', '/']:  # If the key is a digit or operator
-                expression += key
+            current_time = time.time()
+            
+            if debounce(key, current_time):  # Check if the key press is debounced
+                if key == "#":  # Equals button
+                    try:
+                        result = str(eval(expression))  # Evaluate the expression
+                        expression = result
+                    except Exception as e:
+                        expression = "Error"
+                elif key == 'A':  # Clear the expression (mapped to +)
+                    expression += '+'  # Add '+' to the expression
+                elif key == 'B':  # Backspace (remove last character)
+                    expression = expression[:-1]
+                elif key == 'C':  # '*' button
+                    expression += '*'  # Multiply operator
+                elif key == 'D':  # '/' button
+                    expression += '/'  # Division operator
+                elif key.isdigit() or key in ['+', '-', '*', '/']:  # If the key is a digit or operator
+                    expression += key
 
-            update_display()  # Update the LCD display with the current expression
-            print(f"Current Expression: {expression}")
+                update_display()  # Update the LCD display with the current expression
+                print(f"Current Expression: {expression}")
         
-        time.sleep(0.1)  # Small delay to debounce the button press
+        time.sleep(0.05)  # Small delay for debouncing
 
 except KeyboardInterrupt:
     GPIO.cleanup()  # Clean up GPIO on exit
