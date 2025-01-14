@@ -21,7 +21,7 @@ for col in COL_PINS:
 # Define the keypad layout (the matrix of buttons)
 keypad_layout = [
     ['1', '2', '3', 'A'],  # A -> mapped to '+'
-    ['4', '5', '6', 'B'],  # B -> mapped to '-'
+    ['4', '5', '6', 'B'],  # B -> mapped to '-' (subtraction)
     ['7', '8', '9', 'C'],  # C -> mapped to '*'
     ['*', '0', '#', 'D']   # D -> mapped to '/'
 ]
@@ -54,11 +54,11 @@ def update_display():
     lcd.clear()
     lcd.write_string(expression)
 
-# Function to implement debounce
-def debounce(key, current_time, debounce_delay=0.3):
+# Function to implement debounce and key press cooldown
+def debounce(key, current_time, cooldown_time=0.7):
     global last_key, last_time
-    if key == last_key and (current_time - last_time) < debounce_delay:
-        return False  # If the same key is pressed too quickly, ignore it
+    if (current_time - last_time) < cooldown_time:
+        return False  # If the cooldown hasn't passed, ignore the key press
     last_key = key
     last_time = current_time
     return True  # Otherwise, accept the key press
@@ -72,7 +72,7 @@ try:
             current_time = time.time()
             
             if debounce(key, current_time):  # Check if the key press is debounced
-                if key == "#":  # Equals button (No extra functionality for # key)
+                if key == "#":  # Equals button
                     try:
                         result = str(eval(expression))  # Evaluate the expression
                         expression = result
@@ -80,8 +80,8 @@ try:
                         expression = "Error"
                 elif key == 'A':  # Clear the expression (mapped to +)
                     expression += '+'  # Add '+' to the expression
-                elif key == 'B':  # Backspace (remove last character)
-                    expression = expression[:-1]
+                elif key == 'B':  # Subtraction (mapped to -)
+                    expression += '-'  # Subtraction operator
                 elif key == 'C':  # '*' button
                     expression += '*'  # Multiply operator
                 elif key == 'D':  # '/' button
