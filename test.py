@@ -72,7 +72,7 @@ try:
             current_time = time.time()
             
             if debounce(key, current_time):  # Check if the key press is debounced
-                if key == "#":  # Equals button
+                if key == "#":  # Equals button (No extra functionality for # key)
                     try:
                         result = str(eval(expression))  # Evaluate the expression
                         expression = result
