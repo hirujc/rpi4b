@@ -1,132 +1,103 @@
 import RPi.GPIO as GPIO
-import time
-import smbus
-from time import sleep
+from time import sleep, time
+from smbus2 import SMBus
+from RPLCD.i2c import CharLCD
 
-# I2C Setup
-I2C_ADDR = 0x27  # I2C address of the LCD
-bus = smbus.SMBus(1)  # I2C bus
+# Initialize GPIO and LCD
+GPIO.setmode(GPIO.BCM)
 
-# Define row and column pins for the keypad
-COL_PINS = [17, 16, 5, 19]  # GPIO pins for rows
-ROW_PINS = [23, 22, 27, 6]  # GPIO pins for columns
-
-# Define keypad layout
+# Define keypad configuration
 KEYPAD = [
-    ['1', '4', '7', '*'],
-    ['2', '5', '8', '0'],
-    ['3', '6', '9', '#'],
-    ['A', 'B', 'C', 'D']  # 'D' represents division
+    ['1', '2', '3', 'A'],  # Row 0
+    ['4', '5', '6', 'B'],  # Row 1
+    ['7', '8', '9', 'C'],  # Row 2
+    ['*', '0', '#', 'D']   # Row 3
 ]
 
-# LCD initialization
-def lcd_write(cmd, mode=0):
-    """Write a command or data to the LCD."""
-    bus.write_byte_data(I2C_ADDR, mode, cmd)
+ROW_PINS = [5, 6, 13, 19]  # GPIO pins connected to the row pins
+COL_PINS = [12, 16, 20, 21]  # GPIO pins connected to the column pins
 
-def lcd_clear():
-    """Clear the LCD screen."""
-    lcd_write(0x01, 0)  # Clear display
+# Configure GPIO pins
+for row_pin in ROW_PINS:
+    GPIO.setup(row_pin, GPIO.OUT, initial=GPIO.LOW)
+for col_pin in COL_PINS:
+    GPIO.setup(col_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
-def lcd_init():
-    """Initialize the LCD."""
-    lcd_write(0x33, 0)
-    lcd_write(0x32, 0)
-    lcd_write(0x06, 0)
-    lcd_write(0x0C, 0)
-    lcd_write(0x28, 0)
-    lcd_clear()
+# Initialize the I2C LCD
+lcd = CharLCD(i2c_expander='PCF8574', address=0x27, port=1, cols=16, rows=2)
+lcd.clear()
 
-def lcd_display(text):
-    """Display text on the LCD."""
-    for i in range(len(text)):
-        lcd_write(ord(text[i]), 1)  # Write each character to the LCD
+# Function to read key press
+def get_key():
+    for row_idx, row_pin in enumerate(ROW_PINS):
+        GPIO.output(row_pin, GPIO.HIGH)
+        for col_idx, col_pin in enumerate(COL_PINS):
+            if GPIO.input(col_pin) == GPIO.LOW:
+                GPIO.output(row_pin, GPIO.LOW)
+                return KEYPAD[row_idx][col_idx]
+        GPIO.output(row_pin, GPIO.LOW)
+    return None
 
-# Set up GPIO mode
-GPIO.setmode(GPIO.BCM)
-for pin in ROW_PINS:
-    GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Rows as inputs (with pull-up resistors)
-for pin in COL_PINS:
-    GPIO.setup(pin, GPIO.OUT)  # Columns as outputs
+# Function to handle long press
+def check_long_press(key, duration=5):
+    start_time = time()
+    while time() - start_time < duration:
+        if get_key() != key:
+            return False
+    return True
 
-# Function to detect key presses
-def detect_keypress():
+# Function to evaluate fractions
+def evaluate_fraction(equation):
+    try:
+        num, denom = map(int, equation.split('/'))
+        return str(num / denom)
+    except:
+        return "Error!"
+
+# Calculator logic
+def calculator():
+    lcd.clear()
+    lcd.write_string("Calculator Ready!")
+    sleep(2)
+    lcd.clear()
+
+    equation = ""
+    fraction_mode = False
+
     while True:
-        for row in range(4):
-            GPIO.setup(ROW_PINS[row], GPIO.OUT)  # Activate row by setting it as output
-            for col in range(4):
-                GPIO.setup(COL_PINS[col], GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Set column as input to detect low voltage
-                if GPIO.input(COL_PINS[col]) == GPIO.LOW:
-                    key = KEYPAD[row][col]
-                    if key == 'C':  # Clear
-                        return "clear"
-                    if key == '#':  # Equals
-                        return "="
-                    if key == '*':  # Multiplication
-                        return "*"
-                    if key == 'B':  # Subtract
-                        return "-"
-                    if key == 'D':  # Division
-                        return "/"
-                    print(f"Key Pressed: {key}")
-                    time.sleep(0.3)  # Debounce delay to avoid multiple key presses
+        key = get_key()
+        if key:
+            if key == '#':  # Handle # for equal or point
+                if check_long_press('#'):
+                    try:
+                        if fraction_mode:
+                            result = evaluate_fraction(equation)
+                        else:
+                            result = str(eval(equation))
+                        lcd.clear()
+                        lcd.write_string(f"{equation}=\n{result}")
+                    except:
+                        lcd.clear()
+                        lcd.write_string("Error!")
+                    sleep(2)
+                    equation = ""
+                    lcd.clear()
+                else:
+                    equation += '.'
+                    lcd.write_string('.')
+            elif key == '*':  # Handle * for fractions
+                equation += '/'
+                fraction_mode = True
+                lcd.write_string('/')
+            elif key == 'A' or key == 'B' or key == 'C' or key == 'D':  # Ignore A-D
+                continue
+            else:  # Handle numbers and other operators
+                equation += key
+                lcd.write_string(key)
+        sleep(0.2)
 
-def main():
-    current_input = ""
-    operator = ""
-    result = 0
-    display = ""
-    
-    lcd_init()
-    lcd_display("Ready")  # Initial message on LCD
-    time.sleep(2)  # Display for 2 seconds
-    
-    while True:
-        print("Display:", display)
-        lcd_clear()  # Clear the LCD each time before updating
-        lcd_display(display)  # Display the current value on the LCD
-        
-        key = detect_keypress()
-        
-        if key == "clear":
-            current_input = ""
-            operator = ""
-            result = 0
-            display = ""
-        elif key == "=":
-            if operator:
-                try:
-                    if operator == "+":
-                        result += float(current_input)
-                    elif operator == "-":
-                        result -= float(current_input)
-                    elif operator == "*":
-                        result *= float(current_input)
-                    elif operator == "/":
-                        result /= float(current_input)
-                    display = str(result)
-                    current_input = ""
-                    operator = ""
-                except Exception as e:
-                    print(f"Error: {e}")
-                    display = "Error"
-            else:
-                display = current_input
-        elif key == "*":
-            operator = "*"
-            display += " * "
-        elif key == "-":
-            operator = "-"
-            display += " - "
-        elif key == "/":
-            operator = "/"
-            display += " / "
-        else:
-            current_input += key
-            display += key
-
-# Start the calculator
 try:
-    main()
-finally:
+    calculator()
+except KeyboardInterrupt:
+    lcd.clear()
     GPIO.cleanup()
