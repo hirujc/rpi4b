@@ -22,8 +22,8 @@ for col in COL_PINS:
 keypad_layout = [
     ['1', '2', '3', 'A'],  # A -> mapped to '+'
     ['4', '5', '6', 'B'],  # B -> mapped to '-'
-    ['7', '8', '9', 'C'],  # C -> mapped to '*'
-    ['*', '0', '#', 'D']   # D -> mapped to '/'
+    ['7', '8', '9', 'C'],  # C -> Clear
+    ['*', '0', '#', 'D']   # * -> multiplication, D -> division
 ]
 
 # Initialize the LCD using I2C address 0x27
@@ -54,11 +54,11 @@ def update_display():
     lcd.clear()
     lcd.write_string(expression)
 
-# Function to implement debounce
-def debounce(key, current_time, debounce_delay=0.3):
+# Function to implement debounce and key press cooldown
+def debounce(key, current_time, cooldown_time=0.7):
     global last_key, last_time
-    if key == last_key and (current_time - last_time) < debounce_delay:
-        return False  # If the same key is pressed too quickly, ignore it
+    if (current_time - last_time) < cooldown_time:
+        return False  # If the cooldown hasn't passed, ignore the key press
     last_key = key
     last_time = current_time
     return True  # Otherwise, accept the key press
@@ -78,15 +78,17 @@ try:
                         expression = result
                     except Exception as e:
                         expression = "Error"
-                elif key == 'A':  # Clear the expression (mapped to +)
+                elif key == 'A':  # Addition
                     expression += '+'  # Add '+' to the expression
-                elif key == 'B':  # Backspace (remove last character)
-                    expression = expression[:-1]
-                elif key == 'C':  # '*' button
+                elif key == 'B':  # Subtraction
+                    expression += '-'  # Subtraction operator
+                elif key == 'C':  # Clear
+                    expression = ""  # Reset the expression
+                elif key == '*':  # Multiplication
                     expression += '*'  # Multiply operator
-                elif key == 'D':  # '/' button
+                elif key == 'D':  # Division
                     expression += '/'  # Division operator
-                elif key.isdigit() or key in ['+', '-', '*', '/']:  # If the key is a digit or operator
+                elif key.isdigit():  # If the key is a digit
                     expression += key
 
                 update_display()  # Update the LCD display with the current expression
